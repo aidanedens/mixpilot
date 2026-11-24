@@ -36,6 +36,33 @@ sections:
     description: "Adds a small push on top of sunnypilot's own acceleration, stronger in Aggressive and gentler in Relaxed. Eases off in curves and when sunnypilot slows or stops. Never goes past your set speed, and lead-car following still comes first."
     enablement:
     - $ref: '#/macros/longitudinal'
+  - key: DownhillCoastEnabled
+    widget: toggle
+    title: Downhill Coasting
+    description: Allow the vehicle to exceed the set speed by the selected allowance while coasting downhill.
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - $ref: '#/macros/longitudinal'
+  - key: DownhillCoastSpeedAllowance
+    widget: option
+    title: Downhill Coast Speed Allowance
+    description: Maximum speed above the set speed allowed while coasting downhill. Values are always canonical mph, from 0 to 15 mph.
+    min: 0
+    max: 15
+    step: 1
+    unit:
+      metric: mph
+      imperial: mph
+    visibility:
+    - type: param
+      key: DownhillCoastEnabled
+      equals: true
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - $ref: '#/macros/longitudinal'
+    - type: param
+      key: DownhillCoastEnabled
+      equals: true
   - key: IntelligentCruiseButtonManagement
     widget: toggle
     title: Intelligent Cruise Button Management (ICBM) (Alpha)

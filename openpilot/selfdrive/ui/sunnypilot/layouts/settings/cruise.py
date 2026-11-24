@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 from enum import IntEnum
 
+from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed_limit_settings import SpeedLimitSettingsLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr, tr_noop
@@ -63,6 +64,21 @@ class CruiseLayout(Widget):
                      "Eases off in curves and when sunnypilot slows or stops. Never goes past your set speed, and lead-car following still comes first."),
       param="AccelBoostSP")
 
+    self.downhill_coast_toggle = toggle_item_sp(
+      title=tr("Downhill Coasting"),
+      description=tr("Allow the vehicle to exceed the set speed by the selected allowance while coasting downhill."),
+      param="DownhillCoastEnabled",
+      enabled=lambda: ui_state.CP is not None and ui_state.has_longitudinal_control and not ui_state.engaged,
+      callback=self._on_downhill_coast_toggle)
+
+    self.downhill_coast_allowance = option_item_sp(
+      title=tr("Downhill Coast Speed Allowance"),
+      description=tr("Maximum speed above the set speed allowed while coasting downhill."),
+      param="DownhillCoastSpeedAllowance",
+      min_value=0, max_value=15, value_change_step=1,
+      label_callback=self._get_downhill_coast_allowance_label,
+      inline=True)
+
     self.custom_acc_toggle = toggle_item_sp(
       title=tr("Custom ACC Speed Increments"),
       description="",
@@ -93,6 +109,8 @@ class CruiseLayout(Widget):
       self.scc_v_toggle,
       self.scc_m_toggle,
       self.accel_boost_toggle,
+      self.downhill_coast_toggle,
+      self.downhill_coast_allowance,
       self.custom_acc_toggle,
       self.custom_acc_short_increment,
       self.custom_acc_long_increment,
@@ -186,6 +204,15 @@ class CruiseLayout(Widget):
         self.custom_acc_toggle.show_description(True)
 
     self._on_custom_acc_toggle(self.custom_acc_toggle.action_item.get_state())
+    self._on_downhill_coast_toggle(self.downhill_coast_toggle.action_item.get_state())
+
+  def _get_downhill_coast_allowance_label(self, value: int) -> str:
+    display_value = round(value * CV.MPH_TO_KPH) if ui_state.is_metric else value
+    return f"{display_value} {tr('km/h') if ui_state.is_metric else tr('mph')}"
+
+  def _on_downhill_coast_toggle(self, state):
+    self.downhill_coast_allowance.set_visible(state)
+    self.downhill_coast_allowance.action_item.set_enabled(self.downhill_coast_toggle.action_item.enabled)
 
   def _on_custom_acc_toggle(self, state):
     self.custom_acc_short_increment.set_visible(state)

@@ -634,6 +634,57 @@
               ]
             },
             {
+              "key": "DownhillCoastEnabled",
+              "widget": "toggle",
+              "title": "Downhill Coasting",
+              "description": "Allow the vehicle to exceed the set speed by the selected allowance while coasting downhill.",
+              "enablement": [
+                {
+                  "type": "not_engaged"
+                },
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "DownhillCoastSpeedAllowance",
+              "widget": "option",
+              "title": "Downhill Coast Speed Allowance",
+              "description": "Maximum speed above the set speed allowed while coasting downhill. Values are always canonical mph, from 0 to 15 mph.",
+              "min": 0,
+              "max": 15,
+              "step": 1,
+              "unit": {
+                "metric": "mph",
+                "imperial": "mph"
+              },
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "DownhillCoastEnabled",
+                  "equals": true
+                }
+              ],
+              "enablement": [
+                {
+                  "type": "not_engaged"
+                },
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                },
+                {
+                  "type": "param",
+                  "key": "DownhillCoastEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
               "key": "IntelligentCruiseButtonManagement",
               "widget": "toggle",
               "title": "Intelligent Cruise Button Management (ICBM) (Alpha)",

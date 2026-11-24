@@ -26,6 +26,8 @@ class ControlsExt(ModelStateBase):
     self.params = params
     self._param_update_time: float = 0.0
     self.blinker_pause_lateral = BlinkerPauseLateral()
+    self.downhill_coast_enabled = self.params.get_bool("DownhillCoastEnabled")
+    self._downhill_coast_engaged_last = False
 
     cloudlog.info("controlsd_ext is waiting for CarParamsSP")
     self.CP_SP = messaging.log_from_bytes(params.get("CarParamsSP", block=True), custom.CarParamsSP)
@@ -48,7 +50,14 @@ class ControlsExt(ModelStateBase):
       return lac
 
   def get_params_sp(self, sm: messaging.SubMaster) -> None:
+    engaged = sm["selfdriveState"].enabled
+    if engaged != self._downhill_coast_engaged_last:
+      self.downhill_coast_enabled = self.params.get_bool("DownhillCoastEnabled")
+      self._downhill_coast_engaged_last = engaged
+
     if time.monotonic() - self._param_update_time > PARAMS_UPDATE_PERIOD:
+      if not engaged:
+        self.downhill_coast_enabled = self.params.get_bool("DownhillCoastEnabled")
       self.blinker_pause_lateral.get_params()
 
       if self.CP.lateralTuning.which() == 'torque':

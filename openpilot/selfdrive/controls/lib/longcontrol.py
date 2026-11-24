@@ -51,7 +51,7 @@ class LongControl:
   def reset(self):
     self.pid.reset()
 
-  def update(self, active, CS, a_target, should_stop, accel_limits):
+  def update(self, active, CS, a_target, should_stop, accel_limits, coast_active=False):
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
     self.pid.neg_limit = accel_limits[0]
     self.pid.pos_limit = accel_limits[1]
@@ -69,6 +69,12 @@ class LongControl:
         output_accel = min(output_accel, 0.0)
         # TODO: can we just go straight to stopAccel?
         output_accel -= 1.0 * DT_CTRL  # m/s^2/s while trying to stop
+      self.reset()
+
+    elif coast_active:  # LongCtrlState.pid
+      # A zero acceleration target would make the PID brake against downhill
+      # acceleration or apply throttle against drag. Neutral coast bypasses it.
+      output_accel = 0.0
       self.reset()
 
     else:  # LongCtrlState.pid

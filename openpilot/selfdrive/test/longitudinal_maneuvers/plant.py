@@ -15,7 +15,7 @@ class Plant:
   messaging_initialized = False
 
   def __init__(self, lead_relevancy=False, speed=0.0, distance_lead=2.0,
-               enabled=True, only_lead2=False, only_radar=False, personality=0, force_decel=False):
+               enabled=True, only_lead2=False, only_radar=False, personality=0, force_decel=False, e2e_should_stop=False):
     self.rate = 1. / DT_MDL
 
     if not Plant.messaging_initialized:
@@ -41,6 +41,7 @@ class Plant:
     self.only_radar = only_radar
     self.personality = personality
     self.force_decel = force_decel
+    self.e2e_should_stop = e2e_should_stop
 
     self.rk = Ratekeeper(self.rate, print_delay_threshold=100.0)
     self.ts = 1. / self.rate
@@ -111,6 +112,7 @@ class Plant:
     position.x = [float(x) for x in (self.speed + 0.5) * np.array(ModelConstants.T_IDXS)]
     model.modelV2.position = position
     model.modelV2.action.desiredAcceleration = float(self.acceleration + 0.5)
+    model.modelV2.action.shouldStop = self.e2e_should_stop
     velocity = log.XYZTData.new_message()
     velocity.x = [float(x) for x in (self.speed + 0.5) * np.ones_like(ModelConstants.T_IDXS)]
     velocity.x[0] = float(self.speed) # always start at current speed

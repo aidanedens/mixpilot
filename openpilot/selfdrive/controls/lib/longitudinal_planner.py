@@ -2,6 +2,7 @@
 import numpy as np
 
 import openpilot.cereal.messaging as messaging
+from openpilot.cereal import custom
 from opendbc.car.interfaces import ACCEL_MIN, ACCEL_MAX
 from openpilot.common.constants import CV
 from openpilot.common.filter_simple import FirstOrderFilter
@@ -44,6 +45,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self.a_cruise = init_a
     self.output_a_target = init_a
     self.output_should_stop = False
+    self.allow_brake = True
 
     self.v_desired_trajectory = np.zeros(CONTROL_N)
     self.a_desired_trajectory = np.zeros(CONTROL_N)
@@ -54,8 +56,10 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
 
     v_ego = sm['carState'].vEgo
     v_cruise_kph = min(sm['carState'].vCruise, V_CRUISE_MAX)
-    v_cruise = v_cruise_kph * CV.KPH_TO_MS
-    if sm['controlsState'].forceDecel:
+    driver_v_cruise = v_cruise_kph * CV.KPH_TO_MS
+    v_cruise = driver_v_cruise
+    force_decel = sm['controlsState'].forceDecel
+    if force_decel:
       v_cruise = 0.0
 
     long_control_off = sm['controlsState'].longControlState == LongCtrlState.off
@@ -107,17 +111,27 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     output_should_stop_e2e = sm['modelV2'].action.shouldStop
 
     self.a_cruise = get_cruise_accel(v_cruise, v_ego, self.a_cruise, self.dt)
-    cruise_should_stop = should_stop(v_ego, self.a_cruise)
+    normal_a_cruise = self.a_cruise
+    cruise_should_stop = should_stop(v_ego, normal_a_cruise)
 
-    output_a_target_e2e = self.accel_boost.update(sm, output_a_target_e2e, output_a_target_mpc, self.a_cruise)
+    output_a_target_e2e = self.accel_boost.update(sm, output_a_target_e2e, output_a_target_mpc, normal_a_cruise)
+
+    cruise_neutral = self.downhill_coast.update(sm, driver_v_cruise, normal_a_cruise,
+                                                self.source == custom.LongitudinalPlanSP.LongitudinalPlanSource.cruise,
+                                                reset_state, force_decel, v_cruise_initialized)
+    cruise_a_target = 0.0 if cruise_neutral else normal_a_cruise
+    if cruise_neutral:
+      self.a_cruise = 0.0
 
     candidates = [(output_a_target_mpc, self.mpc.source, output_should_stop_mpc),
-                  (self.a_cruise, LongitudinalPlanSource.cruise, cruise_should_stop),
+                  (cruise_a_target, LongitudinalPlanSource.cruise, cruise_should_stop),
                   (output_a_target_e2e, LongitudinalPlanSource.e2e, output_should_stop_e2e)]
 
     output_a_target, self.mpc.source, _ = min(candidates, key=lambda c: c[0])
     self.output_should_stop = any(should_stop for _, _, should_stop in candidates)
     self.output_a_target = np.clip(output_a_target, ACCEL_MIN, ACCEL_MAX)
+    final_neutral = cruise_neutral and np.isfinite(self.output_a_target) and self.output_a_target >= 0.0 and not self.output_should_stop
+    self.allow_brake = not final_neutral
 
     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.output_a_target + a_prev) / 2.0
 
@@ -142,7 +156,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     longitudinalPlan.aTarget = float(self.output_a_target)
     longitudinalPlan.accelBoost = float(self.accel_boost.total_boost)
     longitudinalPlan.shouldStop = bool(self.output_should_stop)
-    longitudinalPlan.allowBrake = True
+    longitudinalPlan.allowBrake = self.allow_brake
 
     pm.send('longitudinalPlan', plan_send)
 

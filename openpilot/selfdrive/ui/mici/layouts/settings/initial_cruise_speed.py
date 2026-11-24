@@ -30,9 +30,12 @@ def lerp(start: float, end: float, t: float) -> float:
 
 
 class SpeedScroller(Widget):
-  def __init__(self, change_callback: Callable[[], None]):
+  def __init__(self, change_callback: Callable[[], None], get_options: Callable[[], tuple[list[int], int]] = get_speed_options,
+               set_speed: Callable[[int], None] = set_initial_cruise_speed):
     super().__init__()
     self._change_callback = change_callback
+    self._get_options = get_options
+    self._set_speed = set_speed
 
     self._center_font = gui_app.font(FontWeight.BOLD)
     self._side_font = gui_app.font(FontWeight.ROMAN)
@@ -49,7 +52,7 @@ class SpeedScroller(Widget):
 
   def show_event(self):
     super().show_event()
-    self._options, self._locked_idx = get_speed_options()
+    self._options, self._locked_idx = self._get_options()
     self._center_widths = [measure_text_cached(self._center_font, str(option), CENTER_FONT_SIZE,
                                                CENTER_LETTER_SPACING * CENTER_FONT_SIZE * FONT_SCALE).x for option in self._options]
     self._side_widths = [measure_text_cached(self._side_font, str(option), SIDE_FONT_SIZE,
@@ -62,7 +65,7 @@ class SpeedScroller(Widget):
 
   def _lock(self, idx: int):
     self._locked_idx = self._clamp_index(idx)
-    set_initial_cruise_speed(self._options[self._locked_idx])
+    self._set_speed(self._options[self._locked_idx])
     self._change_callback()
 
   def _update_state(self):
@@ -128,10 +131,10 @@ class SpeedScroller(Widget):
 
 
 class InitialCruiseSpeedPicker(BigDialogBase):
-  def __init__(self, change_callback: Callable[[], None]):
+  def __init__(self, change_callback: Callable[[], None], speed_scroller: SpeedScroller | None = None):
     super().__init__()
     self._unit_label = self._child(UnifiedLabel("", 36, FontWeight.BOLD, LABEL_COLOR, alignment=TextAlignment.CENTER, letter_spacing=-0.03))
-    self._speed_scroller = self._child(SpeedScroller(change_callback))
+    self._speed_scroller = self._child(speed_scroller or SpeedScroller(change_callback))
     self._speed_scroller.set_enabled(lambda: self.enabled and not self.is_dismissing)
 
   def show_event(self):

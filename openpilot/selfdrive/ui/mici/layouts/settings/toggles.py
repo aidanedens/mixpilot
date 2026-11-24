@@ -6,6 +6,7 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.mici.layouts.settings.initial_cruise_speed import InitialCruiseSpeedButton
+from openpilot.selfdrive.ui.mici.layouts.settings.downhill_coast import DownhillCoastSpeedButton
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 
@@ -21,6 +22,13 @@ class TogglesLayoutMici(NavScroller):
                                                                "Use the steering wheel distance button on supported cars.")
     self._initial_cruise_speed = InitialCruiseSpeedButton()
     self._initial_cruise_speed.set_visible(lambda: ui_state.CP is not None and ui_state.has_longitudinal_control and not ui_state.CP.pcmCruise)
+    self._downhill_coast_toggle = BigParamControl("downhill coasting", "DownhillCoastEnabled",
+                                                  description="Allow the vehicle to exceed the set speed by the selected allowance while coasting downhill.")
+    self._downhill_coast_toggle.set_visible(lambda: ui_state.CP is not None and ui_state.has_longitudinal_control)
+    self._downhill_coast_toggle.set_enabled(lambda: not ui_state.engaged)
+    self._downhill_coast_allowance = DownhillCoastSpeedButton()
+    self._downhill_coast_allowance.set_visible(lambda: ui_state.CP is not None and ui_state.has_longitudinal_control and
+                                               ui_state.params.get_bool("DownhillCoastEnabled"))
     is_metric_toggle = BigToggle("use metric units", initial_state=ui_state.params.get_bool("IsMetric"), toggle_callback=self._on_metric_toggle)
     ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled",
                                  description="Warn when you drift across a detected lane line.\n" +
@@ -41,6 +49,8 @@ class TogglesLayoutMici(NavScroller):
     self._scroller.add_widgets([
       self._personality_toggle,
       self._initial_cruise_speed,
+      self._downhill_coast_toggle,
+      self._downhill_coast_allowance,
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
@@ -57,6 +67,7 @@ class TogglesLayoutMici(NavScroller):
       ("RecordFront", record_front),
       ("RecordAudio", record_mic),
       ("OpenpilotEnabledToggle", enable_openpilot),
+      ("DownhillCoastEnabled", self._downhill_coast_toggle),
     )
 
     enable_openpilot.set_enabled(lambda: not ui_state.engaged)
@@ -89,6 +100,7 @@ class TogglesLayoutMici(NavScroller):
   def _update_toggles(self):
     ui_state.update_params()
     self._initial_cruise_speed.refresh()
+    self._downhill_coast_allowance.refresh()
 
     if ui_state.CP is not None:
       self._personality_toggle.set_visible(ui_state.has_longitudinal_control)
